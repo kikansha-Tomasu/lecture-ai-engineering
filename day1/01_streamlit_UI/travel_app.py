@@ -232,8 +232,11 @@ for msg in st.session_state.messages:
         with st.chat_message("role"):
             st.markdown(msg["content"])
 
+url1 = "https://www.nta.co.jp/media/tripa/articles/FgthG"
+url2 = "https://www.jalan.net/news/article/145790/"
+url3 = "https://www.nta.co.jp/media/tripa/articles/W4f7p"
 if prompt := st.chat_input("質問してください。"):
-    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。{destination} への旅行を計画してください。ただし、期間は{start_date}から{end_date}までで、予算は{budget}円、旅行者数は{travelers}人の旅行です。"})
+    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。 -目的地:{destination} -期間:{start_date}から{end_date}まで -予算:{budget}円 -旅行者数:{travelers}人 -参考にする旅行まとめサイト:{url1}、{url2}、{url3}"})
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
