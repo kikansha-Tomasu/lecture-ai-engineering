@@ -218,7 +218,7 @@ if st.button("旅行プランを保存", type="primary"):
 st.title("ChatBot")
 
 # APIキーを Streamlit secrets から読み込み
-client = OpenAI(api_key=OPENAI_API)
+client = OpenAI(api_key="OPENAI_API")
 
 # モデル設定と履歴初期化
 if "openai_model" not in st.session_state:
@@ -228,15 +228,13 @@ if "messages" not in st.session_state:
 
 # 過去メッセージの表示
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    if msg["role"] != "system":
+        with st.chat_message("role"):
+            st.markdown(msg["content"])
 
-# ユーザーの入力受付
-messages = [
-    {"role": "system", "content": "あなたは優秀な旅行プランナーです。" + destination + "への旅行を計画してください。"}
-]
 if prompt := st.chat_input("質問してください。"):
-    st.session_state.messages.append({"role": "user", "content":prompt})
+    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。{destination} への旅行を計画してください。ただし、期間は{start_date}から{end_date}までで、予算は{budget}円、旅行者数は{travelers}人の旅行です。"})
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
