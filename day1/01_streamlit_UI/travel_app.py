@@ -236,7 +236,7 @@ url1 = "https://www.nta.co.jp/media/tripa/articles/FgthG"
 url2 = "https://www.jalan.net/news/article/145790/"
 url3 = "https://www.nta.co.jp/media/tripa/articles/W4f7p"
 if prompt := st.chat_input("質問してください。"):
-    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。 -目的地:{destination} -期間:{start_date}から{end_date}まで -予算:{budget}円 -旅行者数:{travelers}人 -参考にする旅行まとめサイト:{url1}、{url2}、{url3}"})
+    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。 -目的地:{destination} -期間:{start_date}から{end_date}まで -予算:{budget}円 -旅行者数:{travelers}人 -主に参考にする旅行まとめサイト:{url1}、{url2}、{url3}"})
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
