@@ -355,3 +355,57 @@ st.markdown("• 為替レート表示")
 if st.button("旅行プランを保存", type="primary"):
     st.success("旅行プランが保存されました！")
     st.balloons()
+    
+import streamlit as st
+import folium
+from streamlit_folium import st_folium
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+import time
+
+# 緯度経度取得関数（エラー処理付き）
+def get_lat_lng(place_name, retries=3, delay=1):
+    geolocator = Nominatim(user_agent="tourism-app")
+    for i in range(retries):
+        try:
+            location = geolocator.geocode(place_name, timeout=10)
+            if location:
+                return location.latitude, location.longitude
+        except (GeocoderTimedOut, GeocoderServiceError):
+            time.sleep(delay)
+    return None, None
+
+st.title("🗺️ 観光地マップ（API不要）")
+
+# 目的地入力
+destination = st.text_input("目的地（例：京都）", "京都")
+
+# 簡単な観光地データ（自由に追加可能）
+spots_data = {
+    "京都": ["清水寺", "金閣寺", "伏見稲荷大社"],
+    "東京": ["東京タワー", "浅草寺", "上野動物園"]
+}
+
+# 地図表示
+if destination in spots_data:
+    base_lat, base_lng = get_lat_lng(destination)
+    if base_lat and base_lng:
+        m = folium.Map(location=[base_lat, base_lng], zoom_start=12)
+
+        for spot in spots_data[destination]:
+            spot_name = f"{destination} {spot}"
+            lat, lng = get_lat_lng(spot_name)
+            if lat and lng:
+                folium.Marker(
+                    location=[lat, lng],
+                    popup=spot,
+                    icon=folium.Icon(color="blue")
+                ).add_to(m)
+            else:
+                st.warning(f"{spot_name} の位置情報が取得できませんでした。")
+
+        st_folium(m, width=700, height=500)
+    else:
+        st.error("目的地の位置情報を取得できませんでした。")
+else:
+    st.warning("その目的地の観光地データは未登録です。")
