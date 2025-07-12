@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 from openai import OpenAI  # pip install openai
+import requests
+
+# APIキーを Streamlit secrets から読み込み
+client = OpenAI(api_key="OPENAI_API")
 
 # ページ設定
 st.set_page_config(
@@ -45,16 +49,21 @@ st.sidebar.title("🗺️ 旅行設定")
 # 旅行タイプ選択
 travel_type = st.sidebar.selectbox(
     "旅行タイプ",
-    ["国内旅行", "海外旅行", "出張", "グループ旅行", "一人旅"]
+    ["観光", "出張"]
 )
 
-# 目的地選択
-if travel_type == "国内旅行":
-    destinations = ["東京", "大阪", "京都", "沖縄", "北海道", "金沢", "広島", "福岡"]
-else:
-    destinations = ["パリ", "ロンドン", "ニューヨーク", "バンコク", "ソウル", "台北", "シンガポール", "ローマ"]
+# 居住地選択
+living = "未設定"
+living = st.sidebar.text_input("居住地", "")
 
-destination = st.sidebar.selectbox("目的地", destinations)
+# 目的地選択
+destinations = ["東京", "大阪", "京都", "沖縄", "北海道", "金沢", "広島", "福岡", "パリ", "ロンドン", "ニューヨーク", "バンコク", "ソウル", "台北", "シンガポール", "ローマ", "その他"]
+dest = st.sidebar.selectbox("目的地", destinations)
+if dest == "その他":
+    destination = "未設定"
+    destination = st.sidebar.text_input("目的地を入力してください", "")
+else:
+    destination = dest
 
 # 日程
 start_date = st.sidebar.date_input("出発日", datetime.now())
@@ -98,19 +107,56 @@ with tab1:
             st.write("• 歴史的建造物")
             st.write("• 自然スポット")
             st.write("• グルメエリア")
+        
+        @st.cache_data(show_spinner=False)
+        def get_spots(place):
+            system = f"あなたは優秀な旅行プランナーです。『{place}』への旅行のために、観光客に人気のあるおすすめスポットを日本語で10個、各スポットに簡単な説明（30字以内）付きで教えてください。"
+            resp = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "system", "content": system}],
+                temperature=0.7
+            )
+            return resp.choices[0].message.content
     
     with col2:
-        st.subheader("🌤️ 天気予報")
-        
-        # 模擬天気データ
-        weather_data = pd.DataFrame({
-            'date': pd.date_range(start_date, periods=min(days, 7)),
-            'temperature': np.random.randint(15, 30, min(days, 7)),
-            'condition': np.random.choice(['晴れ', '曇り', '雨'], min(days, 7))
-        })
-        
-        fig = px.line(weather_data, x='date', y='temperature', title='予想気温')
-        st.plotly_chart(fig, use_container_width=True)
+        # --- 現地天気の取得関数 ---
+        @st.cache_data
+        def get_coordinates(place):
+            url = "https://nominatim.openstreetmap.org/search"
+            params = {"q": place, "format": "json", "limit": 1}
+            r = requests.get(url, params=params, headers={"User-Agent": "streamlit"})
+            if r.ok and r.json():
+                loc = r.json()[0]
+                return float(loc["lat"]), float(loc["lon"])
+            return None, None
+
+        @st.cache_data
+        def get_weather(lat, lon, days):
+            url = "https://api.open-meteo.com/v1/forecast"
+            params = {
+                "latitude": lat,
+                "longitude": lon,
+                "hourly": "temperature_2m,weathercode",
+                "timezone": "auto",
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": (start_date + timedelta(days=min(days,7)-1)).strftime("%Y-%m-%d"),
+            }
+            r = requests.get(url, params=params)
+            return pd.DataFrame(r.json()["hourly"]).assign(
+                date=lambda df: pd.to_datetime(df["time"]).dt.date,
+                temp=lambda df: df["temperature_2m"]
+            )
+
+        # --- 表示 ---
+        st.subheader("🌤️ 現地の天気予報")
+        lat, lon = get_coordinates(destination)
+        if lat is None:
+            st.error("目的地を正しく入力してください。")
+        else:
+            dfw = get_weather(lat, lon, days)
+            df_daily = dfw.groupby("date")["temp"].mean().reset_index()
+            fig = px.line(df_daily, x="date", y="temp", title=f"{destination}の予報 (日平均気温)")
+            st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
     st.subheader("📅 旅行スケジュール")
@@ -217,9 +263,6 @@ if st.button("旅行プランを保存", type="primary"):
 
 st.title("ChatBot")
 
-# APIキーを Streamlit secrets から読み込み
-client = OpenAI(api_key="OPENAI_API")
-
 # モデル設定と履歴初期化
 if "openai_model" not in st.session_state:
     st.session_state.openai_model = "gpt-4o"
@@ -236,7 +279,7 @@ url1 = "https://www.nta.co.jp/media/tripa/articles/FgthG"
 url2 = "https://www.jalan.net/news/article/145790/"
 url3 = "https://www.nta.co.jp/media/tripa/articles/W4f7p"
 if prompt := st.chat_input("質問してください。"):
-    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。 -目的地:{destination} -期間:{start_date}から{end_date}まで -予算:{budget}円 -旅行者数:{travelers}人 -主に参考にする旅行まとめサイト:{url1}、{url2}、{url3}"})
+    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。 -居住地:{living} -目的地:{destination} -期間:{start_date}から{end_date}まで -予算:{budget}円 -旅行者数:{travelers}人 -国内旅行の場合、主に参考にする旅行まとめサイト:{url1}、{url2}、{url3} -この旅行に関係のないものが入力された場合、必ず回答するのを避けること。"})
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
