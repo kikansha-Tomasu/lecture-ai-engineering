@@ -218,7 +218,7 @@ if st.button("旅行プランを保存", type="primary"):
 st.title("ChatBot")
 
 # APIキーを Streamlit secrets から読み込み
-client = OpenAI(api_key=OPEN_AI_API)
+client = OpenAI(api_key=OPENAI_API)
 
 # モデル設定と履歴初期化
 if "openai_model" not in st.session_state:
