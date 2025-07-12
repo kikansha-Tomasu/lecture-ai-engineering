@@ -222,5 +222,4 @@ if st.button("旅行プランを保存", type="primary"):
 # 開発者向け情報
 st.sidebar.markdown("---")
 st.sidebar.markdown("**開発情報**")
-st.sidebar.markdown("Streamlit バージョン: " + st.__version__)
-st.sidebar.markdown("ローカルURL: http://localhost:8501")
+st.sidebar.markdown("開発者:りょうすけ ")
