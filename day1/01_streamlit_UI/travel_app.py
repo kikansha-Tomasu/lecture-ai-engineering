@@ -4,6 +4,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
+from openai import OpenAI  # pip install openai
 
 # ページ設定
 st.set_page_config(
@@ -213,3 +214,39 @@ st.markdown("• 為替レート表示")
 if st.button("旅行プランを保存", type="primary"):
     st.success("旅行プランが保存されました！")
     st.balloons()
+
+st.title("ChatBot")
+
+# APIキーを Streamlit secrets から読み込み
+client = OpenAI(api_key=OPEN_AI_API)
+
+# モデル設定と履歴初期化
+if "openai_model" not in st.session_state:
+    st.session_state.openai_model = "gpt-3.5-turbo"
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# 過去メッセージの表示
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# ユーザーの入力受付
+messages = [
+    {"role": "system", "content": "あなたは優秀な旅行プランナーです。" + destination + "への旅行を計画してください。"}
+]
+if prompt := st.chat_input("質問してください。"):
+    st.session_state.messages.append({"role": "user", "content":prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # OpenAI に問い合わせし、応答をストリーミング表示
+    with st.chat_message("assistant"):
+        stream = client.chat.completions.create(
+            model=st.session_state.openai_model,
+            messages=st.session_state.messages,
+            stream=True
+        )
+        response = st.write_stream(stream)
+
+    st.session_state.messages.append({"role": "assistant", "content": response})
