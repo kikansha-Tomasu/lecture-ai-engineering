@@ -222,7 +222,7 @@ client = OpenAI(api_key="OPENAI_API")
 
 # モデル設定と履歴初期化
 if "openai_model" not in st.session_state:
-    st.session_state.openai_model = "gpt-3.5-turbo"
+    st.session_state.openai_model = "gpt-4o"
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
