@@ -4,11 +4,8 @@ import numpy as np
 from datetime import datetime, timedelta
 import plotly.express as px
 import plotly.graph_objects as go
-
-# Streamlitアプリの起動設定
-if __name__ == "__main__":
-    # コマンドラインからの実行時の設定
-    pass
+import openai
+import json
 
 # ページ設定
 st.set_page_config(
@@ -43,7 +40,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# サイドバー
+# OpenAI API設定
+st.sidebar.title("🤖 AI設定")
+openai_api_key = st.sidebar.text_input("OpenAI APIキー", type="password", help="ChatGPT APIを使用するにはAPIキーが必要です")
+
+if openai_api_key:
+    openai.api_key = openai_api_key
+
+st.sidebar.markdown("---")
 st.sidebar.title("🗺️ 旅行設定")
 
 # 旅行タイプ選択
@@ -75,7 +79,7 @@ travelers = st.sidebar.number_input("旅行者数", min_value=1, max_value=20, v
 st.markdown('<h1 class="main-header">✈️ 旅行プランナー</h1>', unsafe_allow_html=True)
 
 # タブ作成
-tab1, tab2, tab3, tab4 = st.tabs(["📍 目的地情報", "📅 スケジュール", "💰 予算管理", "📊 統計"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📍 目的地情報", "📅 スケジュール", "💰 予算管理", "📊 統計", "🤖 AI旅行アシスタント"])
 
 with tab1:
     st.markdown(f'<div class="destination-card"><h2>🏙️ {destination}への旅行</h2><p>期間: {days}日間 | 人数: {travelers}人</p></div>', unsafe_allow_html=True)
@@ -204,6 +208,139 @@ with tab4:
         fig = px.bar(monthly_trips, x='月', y='旅行回数', title='月別旅行回数')
         st.plotly_chart(fig, use_container_width=True)
 
+with tab5:
+    st.subheader("🤖 AI旅行アシスタント")
+    
+    if not openai_api_key:
+        st.warning("⚠️ OpenAI APIキーを入力してください（サイドバー）")
+        st.info("APIキーの取得方法：\n1. https://platform.openai.com にアクセス\n2. アカウントを作成またはログイン\n3. API Keys セクションで新しいキーを生成")
+    else:
+        # ChatGPT API関数
+        def get_chatgpt_response(prompt, travel_context):
+            try:
+                context = f"""
+                旅行情報：
+                - 目的地: {travel_context['destination']}
+                - 旅行タイプ: {travel_context['travel_type']}
+                - 期間: {travel_context['days']}日間
+                - 人数: {travel_context['travelers']}人
+                - 予算: ¥{travel_context['budget']:,}
+                - 出発日: {travel_context['start_date']}
+                
+                あなたは親切な旅行アシスタントです。上記の旅行情報を参考に、具体的で実用的なアドバイスを提供してください。
+                """
+                
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": context},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=1000,
+                    temperature=0.7
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                return f"エラーが発生しました: {str(e)}"
+        
+        # 旅行コンテキスト
+        travel_context = {
+            'destination': destination,
+            'travel_type': travel_type,
+            'days': days,
+            'travelers': travelers,
+            'budget': budget,
+            'start_date': start_date.strftime('%Y年%m月%d日')
+        }
+        
+        # プリセット質問
+        st.subheader("💡 よくある質問")
+        preset_questions = [
+            "おすすめの観光スポットを教えて",
+            "予算内で楽しめるアクティビティは？",
+            "現地の美味しい料理や名物を教えて",
+            "交通手段のおすすめは？",
+            "持参すべき持ち物リストを作って",
+            "現地の文化やマナーについて教えて",
+            "効率的な観光ルートを提案して",
+            "雨の日の過ごし方を教えて"
+        ]
+        
+        col1, col2 = st.columns(2)
+        for i, question in enumerate(preset_questions):
+            if i % 2 == 0:
+                if col1.button(question, key=f"preset_{i}"):
+                    st.session_state['selected_question'] = question
+            else:
+                if col2.button(question, key=f"preset_{i}"):
+                    st.session_state['selected_question'] = question
+        
+        # 質問入力フォーム
+        st.subheader("🗣️ 自由に質問")
+        
+        # セッション状態の初期化
+        if 'chat_history' not in st.session_state:
+            st.session_state.chat_history = []
+        
+        # 選択された質問があれば入力欄に設定
+        default_question = ""
+        if 'selected_question' in st.session_state:
+            default_question = st.session_state['selected_question']
+            del st.session_state['selected_question']
+        
+        user_question = st.text_area(
+            "質問を入力してください：",
+            value=default_question,
+            placeholder="例: 3日間で回れる効率的な観光ルートを教えて",
+            height=100
+        )
+        
+        col1, col2 = st.columns([1, 4])
+        
+        with col1:
+            if st.button("質問する", type="primary"):
+                if user_question.strip():
+                    with st.spinner("AIが回答を生成中..."):
+                        response = get_chatgpt_response(user_question, travel_context)
+                        st.session_state.chat_history.append({
+                            'question': user_question,
+                            'answer': response,
+                            'timestamp': datetime.now()
+                        })
+                        st.experimental_rerun()
+                else:
+                    st.warning("質問を入力してください")
+        
+        with col2:
+            if st.button("履歴をクリア"):
+                st.session_state.chat_history = []
+                st.experimental_rerun()
+        
+        # チャット履歴表示
+        if st.session_state.chat_history:
+            st.subheader("💬 質問履歴")
+            
+            for i, chat in enumerate(reversed(st.session_state.chat_history)):
+                with st.expander(f"Q{len(st.session_state.chat_history)-i}: {chat['question'][:50]}..." if len(chat['question']) > 50 else f"Q{len(st.session_state.chat_history)-i}: {chat['question']}", expanded=(i==0)):
+                    st.markdown(f"**質問:** {chat['question']}")
+                    st.markdown(f"**回答:** {chat['answer']}")
+                    st.caption(f"📅 {chat['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # 使用上の注意
+        st.markdown("---")
+        st.subheader("ℹ️ 使用上の注意")
+        st.info("""
+        **APIキーについて:**
+        - OpenAI APIキーは安全に管理してください
+        - 使用量に応じて料金が発生します
+        - キーは他人と共有しないでください
+        
+        **回答について:**
+        - AIの回答は参考情報として活用してください
+        - 最新の情報は公式サイトで確認することをお勧めします
+        - 重要な予約や手続きは事前に詳細を確認してください
+        """)
+
 # フッター
 st.markdown("---")
 st.markdown("**💡 機能追加のアイデア:**")
@@ -218,8 +355,3 @@ st.markdown("• 為替レート表示")
 if st.button("旅行プランを保存", type="primary"):
     st.success("旅行プランが保存されました！")
     st.balloons()
-
-# 開発者向け情報
-st.sidebar.markdown("---")
-st.sidebar.markdown("**開発情報**")
-st.sidebar.markdown("開発者:りょうすけ ")
