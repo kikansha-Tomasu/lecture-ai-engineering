@@ -64,7 +64,7 @@ living = st.sidebar.text_input("居住地", "")
 
 # 目的地選択
 destinations = ["東京", "大阪", "京都", "沖縄", "北海道", "金沢", "広島", "福岡", "パリ", "ロンドン", "ニューヨーク", "バンコク", "ソウル", "台北", "シンガポール", "ローマ", "その他"]
-dest = st.sidebar.selectbox("目的地", destinations)
+dest = st.sidebar.selectbox("目的地 (その他あり)", destinations)
 if dest == "その他":
     destination = "未設定"
     destination = st.sidebar.text_input("目的地を入力してください", "")
@@ -98,7 +98,7 @@ with tab1:
         
         @st.cache_data(show_spinner=False)
         def get_spots(place):
-            system = f"あなたは優秀な旅行プランナーです。「{place}」への旅行のために、観光客に人気のあるおすすめスポットを日本語で10個、各スポットに簡単な説明（15字以内）付きで教えてください。ただし、箇条書きにし、余計なことは答えないでください。"
+            system = f"あなたは優秀な旅行プランナーです。「{place}」への旅行のために、観光客に人気のあるおすすめスポットを日本語で10個、各スポットに簡単な説明（15字以内）付きで列挙してください。ただし、箇条書きにし、「スポット:説明」という形で出力してください。また、余計なことは答えないでください。"
             resp = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "system", "content": system}],
@@ -117,11 +117,13 @@ with tab1:
         if destination:
             spots_data[destination] = []
             for entry in [s.strip() for s in spots_text.split("\n") if s.strip()]:
-                # '1. スポット名: 説明' → ['1. スポット名', ' 説明']
+                # '1. スポット名 - 説明' → ['1. スポット名', ' 説明']
                 name = entry.split(":")[0]
                 # '1. スポット名' → スポット名
                 clean = name.split(". ", 1)[1] if ". " in name else name
                 spots_data[destination].append(clean)
+        
+
         
         def get_lat_lng(place_name, retries=3, delay=1):
             geolocator = Nominatim(user_agent="tourism-app")
@@ -220,6 +222,18 @@ with tab2:
         })
         
         st.write("---")
+
+        # ChatBot用関数
+        def get_itinerary(place, start, days):
+            sys = f"あなたは優秀な書類整理担当者です。{assistant_history}にスケジュールがあるならば、以下フォーマットで出力してください。" + \
+                  "\nDay 1 AM:〜, Day 1 PM:〜, Day 1 Night:〜"
+            resp = client.chat.completions.create(
+                model=st.session_state.openai_model,
+                messages_schedule=[{"role":"system","content":sys}],
+                temperature=0.7
+            )
+            return resp.choices[0].message.content
+
     
     # スケジュール表示
     if any(item['午前'] or item['午後'] or item['夜'] for item in schedule_data):
@@ -261,6 +275,7 @@ with tab3:
             '項目': ['交通費', '宿泊費', '食費', '観光・娯楽費', 'お土産・買い物'],
             '金額': [transport, accommodation, food, activities, shopping]
         })
+        budget_item = budget_data['項目']
         
         fig = px.pie(budget_data, values='金額', names='項目', title='予算配分')
         st.plotly_chart(fig, use_container_width=True)
@@ -291,10 +306,6 @@ with tab4:
 st.markdown("---")
 st.markdown("**💡 機能追加のアイデア:**")
 st.markdown("• 写真アップロード機能")
-st.markdown("• 地図連携")
-st.markdown("• 旅行記録の保存")
-st.markdown("• 他のユーザーとのプラン共有")
-st.markdown("• リアルタイム天気情報")
 st.markdown("• 為替レート表示")
 
 st.title("ChatBot")
@@ -304,18 +315,21 @@ if "openai_model" not in st.session_state:
     st.session_state.openai_model = "gpt-4o"
 if "messages" not in st.session_state:
     st.session_state.messages = []
+    assistant_history = []
 
 # 過去メッセージの表示
 for msg in st.session_state.messages:
     if msg["role"] != "system":
         with st.chat_message("role"):
             st.markdown(msg["content"])
+            if msg["role"] == "assistant":
+                assistant_history.append(msg["content"])
 
 url1 = "https://www.nta.co.jp/media/tripa/articles/FgthG"
 url2 = "https://www.jalan.net/news/article/145790/"
 url3 = "https://www.nta.co.jp/media/tripa/articles/W4f7p"
 if prompt := st.chat_input("質問してください。"):
-    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。 -居住地:{living} -目的地:{destination} -期間:{start_date}から{end_date}まで -予算:{budget}円 -旅行者数:{travelers}人 -国内旅行の場合、主に参考にする旅行まとめサイト:{url1}、{url2}、{url3} -この旅行に関係のないものが入力された場合、必ず回答するのを避けること。"})
+    st.session_state.messages.append({"role": "system", "content": f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。 -居住地:{living} -目的地:{destination} -期間:{start_date}から{end_date}まで -予算:{budget}円（項目:{budget_item}） -旅行者数:{travelers}人 -国内旅行の場合、主に参考にする旅行まとめサイト:{url1}、{url2}、{url3} -この旅行に関係のないものが入力された場合、必ず回答するのを避けること。"})
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
