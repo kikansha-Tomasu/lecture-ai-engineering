@@ -704,9 +704,9 @@ if prompt := st.chat_input("質問してください。"):
             f" -期間:{start_date}から{end_date}まで"
             f" -予算:{budget}円"
             f" -旅行者数:{travelers}人"
-            f" -国内旅行の場合、主に参考にする旅行まとめサイト:{url1}、{url2}、{url3}"
-            f" -この旅行に関係のないものが入力された場合、必ず回答するのを避けること。ですが"
-            f" -目的地:{destination} の周辺のトイレやレストランなとは答えてください"
+            f" -国内旅行の場合、主に参考にする旅行まとめサイト:{url1}, {url2}, {url3}"
+            f" -この旅行に関係のないものが入力された場合、必ず回答するのを避けること。"
+            f" -目的地:{destination} の周辺のトイレやレストランなどは答えてください。"
         )
         st.session_state.messages.append({"role": "system", "content": system_initial_prompt})
     st.session_state.messages.append({"role": "user", "content": prompt})
