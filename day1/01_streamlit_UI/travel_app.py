@@ -678,11 +678,6 @@ if "openai_model" not in st.session_state:
     st.session_state.openai_model = "gpt-4o"
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    # システムプロンプトを一度だけ追加
-    # ChatBotのシステムプロンプトの定義
-    url1 = "https://www.nta.co.jp/media/tripa/articles/FgthG"
-    url2 = "https://www.jalan.net/news/article/145790/"
-    url3 = "https://www.nta.co.jp/media/tripa/articles/W4f7p"
 
 
 # 過去メッセージの表示
@@ -697,6 +692,11 @@ for msg in st.session_state.messages:
 
 if prompt := st.chat_input("質問してください。"):
     if first_assist:
+        # システムプロンプトを一度だけ追加
+        # ChatBotのシステムプロンプトの定義
+        url1 = "https://www.nta.co.jp/media/tripa/articles/FgthG"
+        url2 = "https://www.jalan.net/news/article/145790/"
+        url3 = "https://www.nta.co.jp/media/tripa/articles/W4f7p"
         system_initial_prompt = (
             f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。"
             f" -居住地:{living}"
