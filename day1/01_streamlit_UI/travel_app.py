@@ -621,8 +621,8 @@ with tab5:
     with col2:
         # 月別旅行回数（サンプルデータ）
         monthly_trips = pd.DataFrame({
-            '月': ['1月', '2月', '3月', '4月', '5月', '6月'],
-            '旅行回数': [2, 1, 3, 2, 4, 3]
+            '月': ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+            '旅行回数': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         })
         
         fig = px.bar(monthly_trips, x='月', y='旅行回数', title='月別旅行回数')
@@ -637,6 +637,7 @@ with tab6:
 
     # プラン内容をMarkdown形式でまとめる
     plan_content = f"# ✈️ 旅行プラン: {destination}\n\n"
+    plan_content += f"**旅行目的:** {travel_type}"
     plan_content += f"**期間:** {start_date.strftime('%Y年%m月%d日')} - {end_date.strftime('%Y年%m月%d日')} ({days}日間)\n"
     plan_content += f"**旅行者数:** {travelers}人\n"
     plan_content += f"**総予算:** ¥{budget:,}円\n\n"
