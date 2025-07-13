@@ -418,6 +418,7 @@ with tab2:
         system_prompt = f"""
         あなたは優秀な旅行プランナーです。
         以下の情報に基づき、旅行のスケジュール案を作成してください。
+        旅行目的:{travel_type}"
         目的地: {destination}
         期間: {start_date.strftime('%Y年%m月%d日')} から {end_date.strftime('%Y年%m月%d日')} ({days}日間)
         旅行者数: {travelers}人
@@ -527,6 +528,7 @@ with tab3:
         system_prompt = f"""
         あなたは旅行の専門家です。
         以下の情報に基づき、旅行の持ち物リストを日本語で生成してください。
+        旅行目的: {travel_type}
         目的地: {destination}
         旅行期間: {start_date.strftime('%Y年%m月%d日')} から {end_date.strftime('%Y年%m月%d日')} ({days}日間)
         季節: {season}
@@ -699,6 +701,7 @@ if prompt := st.chat_input("質問してください。"):
         url3 = "https://www.nta.co.jp/media/tripa/articles/W4f7p"
         system_initial_prompt = (
             f"あなたは優秀な旅行プランナーです。旅行を計画してください。ただし、以下の条件を守ってください。"
+            f" -旅行目的:{travel_type}"
             f" -居住地:{living}"
             f" -目的地:{destination}"
             f" -期間:{start_date}から{end_date}まで"
