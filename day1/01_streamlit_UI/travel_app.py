@@ -687,9 +687,8 @@ for msg in st.session_state.messages:
     if msg["role"] != "system": # システムメッセージは表示しない
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
-    if len(msg[msg["role"] == "assistant"]) == 0:
-      first_assist = True
-    else:
+    first_assist = True
+    if msg["role"] == "assistant":
       first_assist = False
 
 if prompt := st.chat_input("質問してください。"):
