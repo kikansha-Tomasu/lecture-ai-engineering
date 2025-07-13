@@ -7,6 +7,12 @@ import plotly.graph_objects as go
 from openai import OpenAI  # pip install openai
 import requests
 
+import folium
+from streamlit_folium import st_folium
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+import time
+
 # APIキーを Streamlit secrets から読み込み
 client = OpenAI(api_key="OPENAI_API")
 
@@ -90,33 +96,68 @@ with tab1:
     with col1:
         st.subheader("🎯 おすすめスポット")
         
-        # サンプルデータ
-        spots_data = {
-            "東京": ["東京スカイツリー", "浅草寺", "明治神宮", "渋谷スクランブル交差点"],
-            "大阪": ["大阪城", "道頓堀", "ユニバーサル・スタジオ・ジャパン", "通天閣"],
-            "京都": ["清水寺", "金閣寺", "伏見稲荷大社", "嵐山"],
-            "パリ": ["エッフェル塔", "ルーブル美術館", "ノートルダム大聖堂", "シャンゼリゼ通り"],
-            "ロンドン": ["ビッグベン", "大英博物館", "タワーブリッジ", "バッキンガム宮殿"]
-        }
-        
-        if destination in spots_data:
-            for spot in spots_data[destination]:
-                st.write(f"• {spot}")
-        else:
-            st.write("• 現地の人気スポットを調べましょう")
-            st.write("• 歴史的建造物")
-            st.write("• 自然スポット")
-            st.write("• グルメエリア")
-        
         @st.cache_data(show_spinner=False)
         def get_spots(place):
-            system = f"あなたは優秀な旅行プランナーです。『{place}』への旅行のために、観光客に人気のあるおすすめスポットを日本語で10個、各スポットに簡単な説明（30字以内）付きで教えてください。"
+            system = f"あなたは優秀な旅行プランナーです。「{place}」への旅行のために、観光客に人気のあるおすすめスポットを日本語で10個、各スポットに簡単な説明（15字以内）付きで教えてください。ただし、箇条書きにし、余計なことは答えないでください。"
             resp = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o",
                 messages=[{"role": "system", "content": system}],
                 temperature=0.7
             )
             return resp.choices[0].message.content
+
+        spots_text = get_spots(destination)
+
+        # 整形して表示
+        spots = [s.strip() for s in spots_text.split("\n") if s.strip()]
+        for spot in spots:
+            st.write(f"• {spot}")
+        
+        spots_data = {}
+        if destination:
+            spots_data[destination] = []
+            for entry in [s.strip() for s in spots_text.split("\n") if s.strip()]:
+                # '1. スポット名: 説明' → ['1. スポット名', ' 説明']
+                name = entry.split(":")[0]
+                # '1. スポット名' → スポット名
+                clean = name.split(". ", 1)[1] if ". " in name else name
+                spots_data[destination].append(clean)
+        
+        def get_lat_lng(place_name, retries=3, delay=1):
+            geolocator = Nominatim(user_agent="tourism-app")
+            for i in range(retries):
+                try:
+                    location = geolocator.geocode(place_name, timeout=10)
+                    if location:
+                        return location.latitude, location.longitude
+                except (GeocoderTimedOut, GeocoderServiceError):
+                    time.sleep(delay)
+            return None, None
+
+        st.subheader("🗺️ 観光地マップ")
+
+        if destination in spots_data:
+            base_lat, base_lng = get_lat_lng(destination)
+            if base_lat and base_lng:
+                m = folium.Map(location=[base_lat, base_lng], zoom_start=12)
+
+                for spot in spots_data[destination]:
+                    spot_name = f"{destination} {spot}"
+                    lat, lng = get_lat_lng(spot_name)
+                    if lat and lng:
+                        folium.Marker(
+                            location=[lat, lng],
+                            popup=spot,
+                            icon=folium.Icon(color="blue")
+                        ).add_to(m)
+                    else:
+                        st.warning(f"{spot_name} の位置情報が取得できませんでした。")
+
+                st_folium(m, width=700, height=500)
+            else:
+                st.error("目的地の位置情報を取得できませんでした。")
+        else:
+            st.warning("その目的地の観光地データは未登録です。")
     
     with col2:
         # --- 現地天気の取得関数 ---
@@ -255,11 +296,6 @@ st.markdown("• 旅行記録の保存")
 st.markdown("• 他のユーザーとのプラン共有")
 st.markdown("• リアルタイム天気情報")
 st.markdown("• 為替レート表示")
-
-# 保存ボタン
-if st.button("旅行プランを保存", type="primary"):
-    st.success("旅行プランが保存されました！")
-    st.balloons()
 
 st.title("ChatBot")
 
